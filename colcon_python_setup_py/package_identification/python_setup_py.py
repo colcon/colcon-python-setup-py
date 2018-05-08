@@ -108,6 +108,12 @@ def get_setup_arguments(setup_py):
                     setuptools.setup = setuptools_setup
                 except NameError:
                     pass
+            # filter out any data which doesn't work with ast.literal_eval
+            for key, value in list(data.items()):
+                try:
+                    ast.literal_eval(repr(value))
+                except SyntaxError:
+                    del data[key]
             return data
 
         finally:
