@@ -24,6 +24,10 @@ from colcon_core.plugin_system import satisfies_version
 class PythonPackageIdentification(PackageIdentificationExtensionPoint):
     """Identify Python packages with `setup.py` files."""
 
+    # the priority needs to be lower than the extensions identifying packages
+    # using the setup.cfg file
+    PRIORITY = 90
+
     def __init__(self):  # noqa: D107
         super().__init__()
         satisfies_version(
