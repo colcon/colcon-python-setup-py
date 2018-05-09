@@ -185,9 +185,8 @@ def get_setup_arguments_with_context(setup_py, env):
     a separate Python interpreter is being used which can have an extended
     PYTHONPATH etc.
 
-    :param build_type: the build type
-    :param context: the context
-    :type context: :py:class:`ament_tools.context.Context`
+    :param setup_py: The path of the setup.py file
+    :param dict env: The environment variables to use when invoking the file
     :returns: a dictionary containing the arguments of the setup() function
     :rtype: dict
     """
