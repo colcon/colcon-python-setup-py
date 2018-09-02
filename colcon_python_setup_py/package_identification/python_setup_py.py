@@ -15,6 +15,7 @@ import subprocess
 import sys
 from threading import Lock
 
+from colcon_core.dependency_descriptor import DependencyDescriptor
 from colcon_core.package_identification import logger
 from colcon_core.package_identification \
     import PackageIdentificationExtensionPoint
@@ -53,8 +54,11 @@ class PythonPackageIdentification(PackageIdentificationExtensionPoint):
             logger.error('Package name already set to different value')
             raise RuntimeError('Package name already set to different value')
         desc.name = data['name']
+
         for key in ('build', 'run', 'test'):
-            desc.dependencies[key] |= data['%s_depends' % key]
+            desc.dependencies[key] |= {
+                DependencyDescriptor(name) for name in data['%s_depends' % key]
+            }
 
         path = str(desc.path)
 
