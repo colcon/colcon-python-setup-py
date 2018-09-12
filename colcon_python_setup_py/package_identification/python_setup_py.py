@@ -5,7 +5,6 @@ import ast
 import distutils.core
 import os
 from pathlib import Path
-import re
 import runpy
 try:
     import setuptools
@@ -15,10 +14,11 @@ import subprocess
 import sys
 from threading import Lock
 
-from colcon_core.dependency_descriptor import DependencyDescriptor
 from colcon_core.package_identification import logger
 from colcon_core.package_identification \
     import PackageIdentificationExtensionPoint
+from colcon_core.package_identification.python import \
+    create_dependency_descriptor
 from colcon_core.plugin_system import satisfies_version
 
 
@@ -56,9 +56,7 @@ class PythonPackageIdentification(PackageIdentificationExtensionPoint):
         desc.name = data['name']
 
         for key in ('build', 'run', 'test'):
-            desc.dependencies[key] |= {
-                DependencyDescriptor(name) for name in data['%s_depends' % key]
-            }
+            desc.dependencies[key] |= data['%s_depends' % key]
 
         path = str(desc.path)
 
@@ -174,10 +172,8 @@ def extract_data(**kwargs):
     for keyword, key in mapping.items():
         data[key] = set()
         for dep in kwargs.get(keyword, []):
-            # remove version specifier
-            name = re.split(r'<|>|<=|>=|==|!=', dep)[0].rstrip()
-            data[key].add(name)
-
+            descriptor = create_dependency_descriptor(dep)
+            data[key].add(descriptor)
     return data
 
 
