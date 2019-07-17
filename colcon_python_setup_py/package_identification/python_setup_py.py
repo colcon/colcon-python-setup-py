@@ -66,6 +66,8 @@ class PythonPackageIdentification(PackageIdentificationExtensionPoint):
 
         desc.metadata['get_python_setup_options'] = getter
 
+        desc.metadata['version'] = getter(os.environ)['version']
+
 
 cwd_lock = None
 
