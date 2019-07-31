@@ -198,12 +198,13 @@ def get_setup_arguments_with_context(setup_py, env):
         "sys.path.insert(0, '%s')" % pkg_path,
         'from colcon_python_setup_py.package_identification.python_setup_py'
         ' import get_setup_arguments',
-        "print(repr(get_setup_arguments('%s')))" % setup_py]
+        "output = repr(get_setup_arguments('%s'))" % setup_py,
+        "sys.stdout.buffer.write(output.encode('utf-8'))"]
 
     # invoke get_setup_arguments() in a separate interpreter
     cmd = [sys.executable, '-c', ';'.join(code_lines)]
     result = subprocess.run(
         cmd, stdout=subprocess.PIPE, env=env, check=True)
-    output = result.stdout.decode()
+    output = result.stdout.decode('utf-8')
 
     return ast.literal_eval(output)
