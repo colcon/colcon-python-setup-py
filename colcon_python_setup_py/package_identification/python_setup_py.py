@@ -1,11 +1,15 @@
+# Copyright 2019 Dan Rose
 # Copyright 2016-2018 Dirk Thomas
 # Licensed under the Apache License, Version 2.0
 
 import ast
 import distutils.core
+import multiprocessing
 import os
 from pathlib import Path
 import runpy
+import warnings
+
 try:
     import setuptools
 except ImportError:
@@ -43,7 +47,7 @@ class PythonPackageIdentification(PackageIdentificationExtensionPoint):
         if not setup_py.is_file():
             return
 
-        kwargs = get_setup_arguments(setup_py)
+        kwargs = get_setup_metadata(setup_py)
         data = extract_data(**kwargs)
 
         if desc.type is not None and desc.type != 'python':
@@ -61,12 +65,53 @@ class PythonPackageIdentification(PackageIdentificationExtensionPoint):
 
         def getter(env):
             nonlocal path
-            return get_setup_arguments_with_context(
-                os.path.join(path, 'setup.py'), env)
+            return get_setup_metadata(
+                os.path.join(path, 'setup.py'),
+                env
+            )
 
         desc.metadata['get_python_setup_options'] = getter
-
         desc.metadata['version'] = getter(os.environ)['version']
+
+
+def get_setup_metadata(setup_py, env=None):
+    """
+    Runs setup.py, in a subprocess, with the given environment,
+    and returns the resulting metadata
+    :param setup_py: path to a setup.py script
+    :param env: environment variables to set before running setup.py
+    :return: Dictionary of metadata {'name': ..., etc.}
+    """
+    metadata_dict = multiprocessing.Manager().dict()
+    p = multiprocessing.Process(
+        target=_get_setup_metadata_target,
+        args=(
+            setup_py,
+            env,
+            metadata_dict
+        ))
+    p.start()
+    p.join()
+
+    return metadata_dict
+
+
+def _get_setup_metadata_target(setup_py, env, out_dict):
+    """
+    Helper for get_setup_metadata. Expected to run in a subprocess
+    :param setup_py: path to a setup.py script
+    :param out_dict: dict to populate with the results of setup.py
+                     This must be created with a multiprocessing
+                     manager.
+    :param env: environment variables to set before running setup.py
+    :return: None
+    """
+    # don't worry - the environments of functions called with
+    # subprocess.Process don't leak into each other
+    if env is not None:
+        os.environ.update(env)
+    d = distutils.core.run_setup(setup_py)
+    out_dict.update(d.metadata.__dict__)
 
 
 cwd_lock = None
@@ -84,6 +129,7 @@ def get_setup_arguments(setup_py):
     :returns: a dictionary containing the arguments of the setup() function
     :rtype: dict
     """
+    warnings.warn('Please use get_setup_metadata instead of get_setup_arguments', DeprecationWarning)
     global cwd_lock
     if not cwd_lock:
         cwd_lock = Lock()
@@ -137,6 +183,7 @@ def create_mock_setup_function(data):
     :returns: a function to replace distutils.core.setup and setuptools.setup
     :rtype: callable
     """
+
     def setup(*args, **kwargs):
         if args:
             raise RuntimeError(
@@ -166,9 +213,9 @@ def extract_data(**kwargs):
     data = {'name': kwargs['name']}
 
     mapping = {
-        'setup_requires': 'build_depends',
+        'setup_requires':   'build_depends',
         'install_requires': 'run_depends',
-        'tests_require': 'test_depends',
+        'tests_require':    'test_depends',
     }
     for keyword, key in mapping.items():
         data[key] = set()
