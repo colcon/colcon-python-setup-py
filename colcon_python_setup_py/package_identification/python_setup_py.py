@@ -82,16 +82,18 @@ def get_setup_metadata(setup_py, env=None):
     :param env: environment variables to set before running setup.py
     :return: Dictionary of metadata {'name': ..., etc.}
     """
-    metadata_dict = multiprocessing.Manager().dict()
-    p = multiprocessing.Process(
-        target=_get_setup_metadata_target,
-        args=(
-            setup_py,
-            env,
-            metadata_dict
-        ))
-    p.start()
-    p.join()
+    with multiprocessing.Manager() as manager:
+        metadata_dict = manager.dict()
+        p = multiprocessing.Process(
+            target=_get_setup_metadata_target,
+            args=(
+                setup_py,
+                env,
+                metadata_dict
+            )
+        )
+        p.start()
+        p.join()
 
     return metadata_dict
 
