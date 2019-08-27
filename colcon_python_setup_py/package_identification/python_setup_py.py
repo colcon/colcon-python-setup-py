@@ -76,8 +76,8 @@ class PythonPackageIdentification(PackageIdentificationExtensionPoint):
 
 def get_setup_metadata(setup_py, env=None):
     """
-    Runs setup.py, in a subprocess, with the given environment,
-    and returns the resulting metadata
+    Spin up a subprocess to run setup.py, with the given environment.
+
     :param setup_py: path to a setup.py script
     :param env: environment variables to set before running setup.py
     :return: Dictionary of metadata {'name': ..., etc.}
@@ -100,7 +100,9 @@ def get_setup_metadata(setup_py, env=None):
 
 def _get_setup_metadata_target(setup_py, env, out_dict):
     """
-    Helper for get_setup_metadata. Expected to run in a subprocess
+    Run setup.py in a modified environment.
+    Helper function for get_setup_metadata.
+
     :param setup_py: path to a setup.py script
     :param out_dict: dict to populate with the results of setup.py
                      This must be created with a multiprocessing
@@ -108,6 +110,7 @@ def _get_setup_metadata_target(setup_py, env, out_dict):
     :param env: environment variables to set before running setup.py
     :return: None
     """
+    os.chdir(os.path.dirname(setup_py))
     # don't worry - the environments of functions called with
     # subprocess.Process don't leak into each other
     if env is not None:
@@ -131,7 +134,9 @@ def get_setup_arguments(setup_py):
     :returns: a dictionary containing the arguments of the setup() function
     :rtype: dict
     """
-    warnings.warn('Please use get_setup_metadata instead of get_setup_arguments', DeprecationWarning)
+    warnings.warn(
+        'Please use get_setup_metadata instead of get_setup_arguments',
+        DeprecationWarning)
     global cwd_lock
     if not cwd_lock:
         cwd_lock = Lock()
