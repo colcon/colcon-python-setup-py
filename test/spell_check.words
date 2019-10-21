@@ -1,9 +1,12 @@
 apache
 chdir
 colcon
+distclass
 iterdir
+kwds
 noqa
 pathlib
+picklable
 plugin
 pytest
 pythonpath
@@ -11,4 +14,6 @@ rtype
 runpy
 scspell
 setuptools
+stacklevel
 thomas
+traceback

@@ -1,8 +1,10 @@
-# Copyright 2016-2018 Dirk Thomas
+# Copyright 2016-2019 Dirk Thomas
+# Copyright 2019 Rover Robotics via Dan Rose
 # Licensed under the Apache License, Version 2.0
 
 import ast
 import distutils.core
+import multiprocessing
 import os
 from pathlib import Path
 import runpy
@@ -13,8 +15,9 @@ except ImportError:
 import subprocess
 import sys
 from threading import Lock
+import traceback
+import warnings
 
-from colcon_core.package_identification import logger
 from colcon_core.package_identification \
     import PackageIdentificationExtensionPoint
 from colcon_core.package_identification.python import \
@@ -43,30 +46,34 @@ class PythonPackageIdentification(PackageIdentificationExtensionPoint):
         if not setup_py.is_file():
             return
 
-        kwargs = get_setup_arguments(setup_py)
-        data = extract_data(**kwargs)
+        config = get_setup_information(setup_py, env=os.environ)
 
-        if desc.type is not None and desc.type != 'python':
-            logger.error('Package type already set to different value')
-            raise RuntimeError('Package type already set to different value')
+        name = config['metadata'].name
+        if not name:
+            raise RuntimeError(
+                'Failed to determine Python package name in '
+                "'{setup_py.parent}'".format_map(locals()))
+
         desc.type = 'python'
-        if desc.name is not None and desc.name != data['name']:
-            logger.error('Package name already set to different value')
-            raise RuntimeError('Package name already set to different value')
-        desc.name = data['name']
-        for key in ('build', 'run', 'test'):
-            desc.dependencies[key] |= data['%s_depends' % key]
+        if desc.name is None:
+            desc.name = name
 
-        path = str(desc.path)
+        desc.metadata['version'] = config['metadata'].version
+
+        for dependency_type, option_name in [
+            ('build', 'setup_requires'),
+            ('run', 'install_requires'),
+            ('test', 'tests_require')
+        ]:
+            desc.dependencies[dependency_type] = {
+                create_dependency_descriptor(d)
+                for d in config[option_name] or ()}
 
         def getter(env):
-            nonlocal path
-            return get_setup_arguments_with_context(
-                os.path.join(path, 'setup.py'), env)
+            nonlocal setup_py
+            return get_setup_information(setup_py, env=env)
 
         desc.metadata['get_python_setup_options'] = getter
-
-        desc.metadata['version'] = getter(os.environ)['version']
 
 
 cwd_lock = None
@@ -84,6 +91,12 @@ def get_setup_arguments(setup_py):
     :returns: a dictionary containing the arguments of the setup() function
     :rtype: dict
     """
+    warnings.warn(
+        'colcon_python_setup_py.package_identification.python_setup_py.'
+        'get_setup_arguments() has been deprecated, use '
+        'colcon_python_setup_py.package_identification.python_setup_py.'
+        'get_setup_information() instead',
+        stacklevel=2)
     global cwd_lock
     if not cwd_lock:
         cwd_lock = Lock()
@@ -137,6 +150,11 @@ def create_mock_setup_function(data):
     :returns: a function to replace distutils.core.setup and setuptools.setup
     :rtype: callable
     """
+    warnings.warn(
+        'colcon_python_setup_py.package_identification.python_setup_py.'
+        'create_mock_setup_function() will be removed in the future',
+        DeprecationWarning, stacklevel=2)
+
     def setup(*args, **kwargs):
         if args:
             raise RuntimeError(
@@ -160,6 +178,10 @@ def extract_data(**kwargs):
     :rtype: dict
     :raises RuntimeError: if the keywords don't contain `name`
     """
+    warnings.warn(
+        'colcon_python_setup_py.package_identification.python_setup_py.'
+        'extract_data() will be removed in the future',
+        DeprecationWarning, stacklevel=2)
     if 'name' not in kwargs:
         raise RuntimeError(
             "setup() function invoked without the keyword argument 'name'")
@@ -186,6 +208,8 @@ def get_setup_arguments_with_context(setup_py, env):
     a separate Python interpreter is being used which can have an extended
     PYTHONPATH etc.
 
+    This function has been deprecated, use get_setup_information() instead.
+
     :param setup_py: The path of the setup.py file
     :param dict env: The environment variables to use when invoking the file
     :returns: a dictionary containing the arguments of the setup() function
@@ -210,3 +234,70 @@ def get_setup_arguments_with_context(setup_py, env):
     output = result.stdout.decode('utf-8')
 
     return ast.literal_eval(output)
+
+
+_process_pool = multiprocessing.Pool()
+
+
+def get_setup_information(setup_py, *, env):
+    """
+    Dry run the setup.py file and get the configuration information.
+
+    :param Path setup_py: path to a setup.py script
+    :param dict env: environment variables to set before running setup.py
+    :return: dictionary of data describing the package.
+    :raise: RuntimeError if the setup script encountered an error
+    """
+    try:
+        return _process_pool.apply(
+            run_setup_py,
+            kwds={
+                'cwd': os.path.abspath(str(setup_py.parent)),
+                'env': env,
+                'script_args': ('--dry-run',),
+                'stop_after': 'config'
+            }
+        )
+    except Exception as e:
+        raise RuntimeError(
+            "Failed to dry run setup script '{setup_py}': "
+            .format_map(locals()) + traceback.format_exc()) from e
+
+
+def run_setup_py(cwd, env, script_args=(), stop_after='run'):
+    """
+    Modify the current process and run setup.py.
+
+    This should be run in a subprocess to not affect the state of the current
+    process.
+
+    :param str cwd: absolute path to a directory containing a setup.py script
+    :param dict env: environment variables to set before running setup.py
+    :param script_args: command-line arguments to pass to setup.py
+    :param stop_after: tells setup() when to stop processing
+    :returns: the public properties of a Distribution object, minus objects
+      with are generally not picklable
+    """
+    # need to be in setup.py's parent dir to detect any setup.cfg
+    os.chdir(cwd)
+
+    os.environ.clear()
+    os.environ.update(env)
+
+    result = distutils.core.run_setup(
+        'setup.py', script_args=script_args, stop_after=stop_after)
+
+    return {
+        key: value for key, value in result.__dict__.items()
+        if (
+            # Private properties
+            not key.startswith('_') and
+            # Getter methods
+            not callable(value) and
+            # Objects that are generally not picklable
+            key not in ('cmdclass', 'distclass', 'ext_modules') and
+            # These *seem* useful but always have the value 0.
+            # Look for their values in the 'metadata' object instead.
+            key not in result.display_option_names
+        )
+    }
