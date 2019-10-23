@@ -16,6 +16,7 @@ import subprocess
 import sys
 from threading import Lock
 import traceback
+from typing import Mapping
 import warnings
 
 from colcon_core.package_identification \
@@ -239,12 +240,12 @@ def get_setup_arguments_with_context(setup_py, env):
 _process_pool = multiprocessing.Pool()
 
 
-def get_setup_information(setup_py, *, env):
+def get_setup_information(setup_py: Path, *, env: Mapping[str, str]):
     """
     Dry run the setup.py file and get the configuration information.
 
-    :param Path setup_py: path to a setup.py script
-    :param dict env: environment variables to set before running setup.py
+    :param setup_py: path to a setup.py script
+    :param env: environment variables to set before running setup.py
     :return: dictionary of data describing the package.
     :raise: RuntimeError if the setup script encountered an error
     """
@@ -253,7 +254,8 @@ def get_setup_information(setup_py, *, env):
             run_setup_py,
             kwds={
                 'cwd': os.path.abspath(str(setup_py.parent)),
-                'env': env,
+                # might be os.environ, which is not picklable
+                'env': dict(env),
                 'script_args': ('--dry-run',),
                 'stop_after': 'config'
             }
