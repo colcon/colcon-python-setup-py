@@ -23,6 +23,7 @@ from colcon_core.plugin_system import satisfies_version
 
 from .run_setup_py import run_setup_py
 
+
 class PythonPackageIdentification(PackageIdentificationExtensionPoint):
     """Identify Python packages with `setup.py` files."""
 
