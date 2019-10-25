@@ -28,6 +28,13 @@ def run_setup_py(cwd, env, script_args=(), stop_after='run'):
     result = distutils.core.run_setup(
         'setup.py', script_args=script_args, stop_after=stop_after)
 
+    try:
+        # hack to make this class pickle to an ordinary set
+        from setuptools.extern.ordered_set import OrderedSet
+        OrderedSet.__reduce__ = lambda self: (set, (list(self),))
+    except ImportError:
+        pass
+
     return {
         key: value for key, value in result.__dict__.items()
         if (
