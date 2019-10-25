@@ -2,14 +2,15 @@ apache
 chdir
 colcon
 distclass
+functools
 iterdir
-kwds
 noqa
 pathlib
 picklable
 plugin
 pytest
 pythonpath
+recv
 rtype
 runpy
 scspell

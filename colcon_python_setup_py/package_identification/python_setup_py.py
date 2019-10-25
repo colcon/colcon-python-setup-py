@@ -257,4 +257,4 @@ def get_setup_information(setup_py: Path, *, env: Mapping[str, str]):
     except Exception as e:
         raise RuntimeError(
             "Failed to dry run setup script '{setup_py}': "
-                .format_map(locals()) + traceback.format_exc()) from e
+            .format_map(locals()) + traceback.format_exc()) from e
