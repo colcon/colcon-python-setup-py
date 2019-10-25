@@ -4,7 +4,6 @@
 
 import ast
 import distutils.core
-import multiprocessing
 import os
 from pathlib import Path
 import runpy
@@ -20,6 +19,7 @@ from colcon_core.package_identification \
 from colcon_core.package_identification.python import \
     create_dependency_descriptor
 from colcon_core.plugin_system import satisfies_version
+from .out_of_process import out_of_process
 
 from .run_setup_py import run_setup_py
 
@@ -245,19 +245,16 @@ def get_setup_information(setup_py: Path, *, env: Mapping[str, str]):
     :return: dictionary of data describing the package.
     :raise: RuntimeError if the setup script encountered an error
     """
+    setup_in_subprocess = out_of_process(run_setup_py)
     try:
-        with multiprocessing.Pool(1) as _process_pool:
-            return _process_pool.apply(
-                run_setup_py,
-                kwds={
-                    'cwd': os.path.abspath(str(setup_py.parent)),
-                    # might be os.environ, which is not picklable
-                    'env': dict(env),
-                    'script_args': ('--dry-run',),
-                    'stop_after': 'config'
-                }
-            )
+        setup_in_subprocess(
+            cwd=os.path.abspath(str(setup_py.parent)),
+            # might be os.environ, which is not picklable
+            env=dict(env),
+            script_args=('--dry-run',),
+            stop_after='config'
+        )
     except Exception as e:
         raise RuntimeError(
             "Failed to dry run setup script '{setup_py}': "
-            .format_map(locals()) + traceback.format_exc()) from e
+                .format_map(locals()) + traceback.format_exc()) from e
