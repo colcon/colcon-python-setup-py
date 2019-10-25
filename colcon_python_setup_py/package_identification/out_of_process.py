@@ -1,3 +1,6 @@
+# Copyright 2019 Rover Robotics via Dan Rose
+# Licensed under the Apache License, Version 2.0
+
 import functools
 import traceback
 
