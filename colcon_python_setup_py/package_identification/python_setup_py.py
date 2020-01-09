@@ -87,7 +87,7 @@ def get_setup_arguments(setup_py):
     global cwd_lock
     if not cwd_lock:
         cwd_lock = Lock()
-    setup_py = Path(str(setup_py))
+    setup_py = Path(str(setup_py)).resolve()
     assert setup_py.name == 'setup.py'
     # prevent side effects in other threads
     with cwd_lock:
