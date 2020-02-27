@@ -1,7 +1,10 @@
 apache
 chdir
 colcon
+distclass
+hashable
 iterdir
+lstrip
 noqa
 pathlib
 plugin
@@ -11,4 +14,5 @@ rtype
 runpy
 scspell
 setuptools
+stacklevel
 thomas
