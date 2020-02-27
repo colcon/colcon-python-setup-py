@@ -242,15 +242,31 @@ def get_setup_arguments_with_context(setup_py, env):
     return ast.literal_eval(output)
 
 
+_setup_information_cache = {}
+
+
 def get_setup_information(setup_py, *, env=None):
     """
     Dry run the setup.py file and get the configuration information.
+
+    A repeated invocation with the same arguments returns a cached result.
 
     :param Path setup_py: path to a setup.py script
     :param dict env: environment variables to set before running setup.py
     :return: dictionary of data describing the package.
     :raise: RuntimeError if the setup script encountered an error
     """
+    global _setup_information_cache
+    if env is None:
+        env = os.environ
+    hashable_env = (setup_py, ) + tuple(sorted(env.items()))
+    if hashable_env not in _setup_information_cache:
+        _setup_information_cache[hashable_env] = _get_setup_information(
+            setup_py, env=env)
+    return _setup_information_cache[hashable_env]
+
+
+def _get_setup_information(setup_py, *, env=None):
     code_lines = [
         'import sys',
         'from distutils.core import run_setup',
