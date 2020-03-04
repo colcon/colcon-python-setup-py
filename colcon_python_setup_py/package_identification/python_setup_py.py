@@ -13,6 +13,7 @@ except ImportError:
 import subprocess
 import sys
 from threading import Lock
+import warnings
 
 from colcon_core.package_identification import logger
 from colcon_core.package_identification \
@@ -43,30 +44,42 @@ class PythonPackageIdentification(PackageIdentificationExtensionPoint):
         if not setup_py.is_file():
             return
 
-        kwargs = get_setup_arguments(setup_py)
-        data = extract_data(**kwargs)
+        config = get_setup_information(setup_py)
 
         if desc.type is not None and desc.type != 'python':
             logger.error('Package type already set to different value')
             raise RuntimeError('Package type already set to different value')
         desc.type = 'python'
-        if desc.name is not None and desc.name != data['name']:
+
+        name = config['metadata'].name
+        if not name:
+            logger.error(
+                'Failed to determine Python package name in '
+                "'{setup_py.parent}'".format_map(locals()))
+            raise RuntimeError(
+                'Failed to determine Python package name in '
+                "'{setup_py.parent}'".format_map(locals()))
+        if desc.name is not None and desc.name != name:
             logger.error('Package name already set to different value')
             raise RuntimeError('Package name already set to different value')
-        desc.name = data['name']
-        for key in ('build', 'run', 'test'):
-            desc.dependencies[key] |= data['%s_depends' % key]
+        desc.name = name
 
-        path = str(desc.path)
+        for dependency_type, option_name in [
+            ('build', 'setup_requires'),
+            ('run', 'install_requires'),
+            ('test', 'tests_require')
+        ]:
+            desc.dependencies[dependency_type] = {
+                create_dependency_descriptor(d)
+                for d in config[option_name] or ()}
 
         def getter(env):
-            nonlocal path
-            return get_setup_arguments_with_context(
-                os.path.join(path, 'setup.py'), env)
+            nonlocal setup_py
+            return get_setup_information(setup_py, env=env)
 
         desc.metadata['get_python_setup_options'] = getter
 
-        desc.metadata['version'] = getter(os.environ)['version']
+        desc.metadata['version'] = config['metadata'].version
 
 
 cwd_lock = None
@@ -84,6 +97,12 @@ def get_setup_arguments(setup_py):
     :returns: a dictionary containing the arguments of the setup() function
     :rtype: dict
     """
+    warnings.warn(
+        'colcon_python_setup_py.package_identification.python_setup_py.'
+        'get_setup_arguments() has been deprecated, use '
+        'colcon_python_setup_py.package_identification.python_setup_py.'
+        'get_setup_information() instead',
+        stacklevel=2)
     global cwd_lock
     if not cwd_lock:
         cwd_lock = Lock()
@@ -137,6 +156,11 @@ def create_mock_setup_function(data):
     :returns: a function to replace distutils.core.setup and setuptools.setup
     :rtype: callable
     """
+    warnings.warn(
+        'colcon_python_setup_py.package_identification.python_setup_py.'
+        'create_mock_setup_function() will be removed in the future',
+        DeprecationWarning, stacklevel=2)
+
     def setup(*args, **kwargs):
         if args:
             raise RuntimeError(
@@ -160,6 +184,10 @@ def extract_data(**kwargs):
     :rtype: dict
     :raises RuntimeError: if the keywords don't contain `name`
     """
+    warnings.warn(
+        'colcon_python_setup_py.package_identification.python_setup_py.'
+        'extract_data() will be removed in the future',
+        DeprecationWarning, stacklevel=2)
     if 'name' not in kwargs:
         raise RuntimeError(
             "setup() function invoked without the keyword argument 'name'")
@@ -186,6 +214,8 @@ def get_setup_arguments_with_context(setup_py, env):
     a separate Python interpreter is being used which can have an extended
     PYTHONPATH etc.
 
+    This function has been deprecated, use get_setup_information() instead.
+
     :param setup_py: The path of the setup.py file
     :param dict env: The environment variables to use when invoking the file
     :returns: a dictionary containing the arguments of the setup() function
@@ -207,6 +237,70 @@ def get_setup_arguments_with_context(setup_py, env):
     cmd = [sys.executable, '-c', ';'.join(code_lines)]
     result = subprocess.run(
         cmd, stdout=subprocess.PIPE, env=env, check=True)
+    output = result.stdout.decode('utf-8')
+
+    return ast.literal_eval(output)
+
+
+_setup_information_cache = {}
+
+
+def get_setup_information(setup_py, *, env=None):
+    """
+    Dry run the setup.py file and get the configuration information.
+
+    A repeated invocation with the same arguments returns a cached result.
+
+    :param Path setup_py: path to a setup.py script
+    :param dict env: environment variables to set before running setup.py
+    :return: dictionary of data describing the package.
+    :raise: RuntimeError if the setup script encountered an error
+    """
+    global _setup_information_cache
+    if env is None:
+        env = os.environ
+    hashable_env = (setup_py, ) + tuple(sorted(env.items()))
+    if hashable_env not in _setup_information_cache:
+        _setup_information_cache[hashable_env] = _get_setup_information(
+            setup_py, env=env)
+    return _setup_information_cache[hashable_env]
+
+
+def _get_setup_information(setup_py, *, env=None):
+    code_lines = [
+        'import sys',
+        'from distutils.core import run_setup',
+
+        'dist = run_setup('
+        "    'setup.py', script_args=('--dry-run',), stop_after='config')",
+
+        "skip_keys = ('cmdclass', 'distclass', 'ext_modules', 'metadata')",
+        'data = {'
+        '    key: value for key, value in dist.__dict__.items() '
+        '    if ('
+        # skip private properties
+        "        not key.startswith('_') and "
+        # skip methods
+        '        not callable(value) and '
+        # skip objects whose representation can't be evaluated
+        '        key not in skip_keys and '
+        # skip display options since they have no value, using metadata instead
+        '        key not in dist.display_option_names'
+        '    )'
+        '}',
+        "data['metadata'] = {"
+        '    k: v for k, v in dist.metadata.__dict__.items() '
+        # skip values with custom type OrderedSet
+        "    if k not in ('license_files', 'provides_extras')}",
+
+        "sys.stdout.buffer.write(repr(data).encode('utf-8'))"]
+
+    # invoke distutils.core.run_setup() in a separate interpreter
+    cmd = [
+        sys.executable, '-c', ';'.join(line.lstrip() for line in code_lines)]
+    result = subprocess.run(
+        cmd, stdout=subprocess.PIPE,
+        cwd=os.path.abspath(str(setup_py.parent)), check=True, env=env)
     output = result.stdout.decode('utf-8')
 
     return ast.literal_eval(output)
