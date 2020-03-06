@@ -51,7 +51,7 @@ class PythonPackageIdentification(PackageIdentificationExtensionPoint):
             raise RuntimeError('Package type already set to different value')
         desc.type = 'python'
 
-        name = config['metadata'].name
+        name = config['metadata'].get('name')
         if not name:
             logger.error(
                 'Failed to determine Python package name in '
@@ -79,7 +79,7 @@ class PythonPackageIdentification(PackageIdentificationExtensionPoint):
 
         desc.metadata['get_python_setup_options'] = getter
 
-        desc.metadata['version'] = config['metadata'].version
+        desc.metadata['version'] = config['metadata'].get('version')
 
 
 cwd_lock = None
