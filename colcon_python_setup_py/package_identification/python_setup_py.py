@@ -1,9 +1,9 @@
 # Copyright 2016-2018 Dirk Thomas
 # Licensed under the Apache License, Version 2.0
 
-import ast
 import distutils.core
 import os
+import pickle
 from pathlib import Path
 import runpy
 try:
@@ -134,11 +134,11 @@ def get_setup_arguments(setup_py):
                     setuptools.setup = setuptools_setup
                 except NameError:
                     pass
-            # filter out any data which doesn't work with ast.literal_eval
+            # filter out any data which doesn't serialize
             for key, value in list(data.items()):
                 try:
-                    ast.literal_eval(repr(value))
-                except SyntaxError:
+                    pickle.dumps(value)
+                except pickle.PicklingError:
                     del data[key]
             return data
 
@@ -237,9 +237,9 @@ def get_setup_arguments_with_context(setup_py, env):
     cmd = [sys.executable, '-c', ';'.join(code_lines)]
     result = subprocess.run(
         cmd, stdout=subprocess.PIPE, env=env, check=True)
-    output = result.stdout.decode('utf-8')
+    output = result.stdout
 
-    return ast.literal_eval(output)
+    return pickle.loads(output)
 
 
 _setup_information_cache = {}
@@ -269,6 +269,7 @@ def get_setup_information(setup_py, *, env=None):
 def _get_setup_information(setup_py, *, env=None):
     code_lines = [
         'import sys',
+        'import pickle',
         'from distutils.core import run_setup',
 
         'dist = run_setup('
@@ -293,7 +294,7 @@ def _get_setup_information(setup_py, *, env=None):
         # skip values with custom type OrderedSet
         "    if k not in ('license_files', 'provides_extras')}",
 
-        "sys.stdout.buffer.write(repr(data).encode('utf-8'))"]
+        'pickle.dump(data, sys.stdout)']
 
     # invoke distutils.core.run_setup() in a separate interpreter
     cmd = [
@@ -301,6 +302,6 @@ def _get_setup_information(setup_py, *, env=None):
     result = subprocess.run(
         cmd, stdout=subprocess.PIPE,
         cwd=os.path.abspath(str(setup_py.parent)), check=True, env=env)
-    output = result.stdout.decode('utf-8')
+    output = result.stdout
 
-    return ast.literal_eval(output)
+    return pickle.loads(output)
