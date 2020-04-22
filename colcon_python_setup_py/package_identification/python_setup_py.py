@@ -277,26 +277,7 @@ def _get_setup_information(setup_py, *, env=None):
         'dist = run_setup('
         "    'setup.py', script_args=('--dry-run',), stop_after='config')",
 
-        "skip_keys = ('cmdclass', 'distclass', 'ext_modules', 'metadata')",
-        'data = {'
-        '    key: value for key, value in dist.__dict__.items() '
-        '    if ('
-        # skip private properties
-        "        not key.startswith('_') and "
-        # skip methods
-        '        not callable(value) and '
-        # skip objects whose representation can't be evaluated
-        '        key not in skip_keys and '
-        # skip display options since they have no value, using metadata instead
-        '        key not in dist.display_option_names'
-        '    )'
-        '}',
-        "data['metadata'] = {"
-        '    k: v for k, v in dist.metadata.__dict__.items() '
-        # skip values with custom type OrderedSet
-        "    if k not in ('license_files', 'provides_extras')}",
-
-        'pickle.dump(data, sys.stdout.buffer)']
+        'pickle.dump(dist, sys.stdout.buffer)']
 
     # invoke distutils.core.run_setup() in a separate interpreter
     cmd = [
@@ -305,5 +286,9 @@ def _get_setup_information(setup_py, *, env=None):
         cmd, stdout=subprocess.PIPE,
         cwd=os.path.abspath(str(setup_py.parent)), check=True, env=env)
     output = result.stdout
+    dist = pickle.loads(output)
 
-    return pickle.loads(output)
+    # turn into a dict for backwards compatibility
+    dist_dict = dist.__dict__.copy()
+    dist_dict['metadata'] = dist.metadata.__dict__
+    return dist_dict

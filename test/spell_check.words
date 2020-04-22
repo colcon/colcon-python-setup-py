@@ -1,7 +1,6 @@
 apache
 chdir
 colcon
-distclass
 hashable
 iterdir
 lstrip
