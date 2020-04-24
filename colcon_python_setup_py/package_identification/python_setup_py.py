@@ -226,12 +226,14 @@ def get_setup_arguments_with_context(setup_py, env):
         pkg_path = str(pkg_path).replace(os.sep, os.altsep)
         setup_py = str(setup_py).replace(os.sep, os.altsep)
     code_lines = [
+        'import pickle',
         'import sys',
         "sys.path.insert(0, '%s')" % pkg_path,
         'from colcon_python_setup_py.package_identification.python_setup_py'
         ' import get_setup_arguments',
-        "output = repr(get_setup_arguments('%s'))" % setup_py,
-        "sys.stdout.buffer.write(output.encode('utf-8'))"]
+        "output = get_setup_arguments('%s')" % setup_py,
+        'pickle.dump(output, sys.stdout.buffer)'
+        ]
 
     # invoke get_setup_arguments() in a separate interpreter
     cmd = [sys.executable, '-c', ';'.join(code_lines)]
@@ -294,7 +296,7 @@ def _get_setup_information(setup_py, *, env=None):
         # skip values with custom type OrderedSet
         "    if k not in ('license_files', 'provides_extras')}",
 
-        'pickle.dump(data, sys.stdout)']
+        'pickle.dump(data, sys.stdout.buffer)']
 
     # invoke distutils.core.run_setup() in a separate interpreter
     cmd = [
