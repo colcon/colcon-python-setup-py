@@ -2,14 +2,13 @@
 # Licensed under the Apache License, Version 2.0
 
 import ast
+from contextlib import suppress
 import distutils.core
 import os
 from pathlib import Path
 import runpy
-try:
+with suppress(ImportError):
     import setuptools
-except ImportError:
-    pass
 import subprocess
 import sys
 from threading import Lock
@@ -121,19 +120,15 @@ def get_setup_arguments(setup_py):
             try:
                 distutils_setup = distutils.core.setup
                 distutils.core.setup = mock_setup
-                try:
+                with suppress(NameError):
                     setuptools_setup = setuptools.setup
                     setuptools.setup = mock_setup
-                except NameError:
-                    pass
                 # evaluate the setup.py file
                 runpy.run_path(str(setup_py))
             finally:
                 distutils.core.setup = distutils_setup
-                try:
+                with suppress(NameError):
                     setuptools.setup = setuptools_setup
-                except NameError:
-                    pass
             # filter out any data which doesn't work with ast.literal_eval
             for key, value in list(data.items()):
                 try:
