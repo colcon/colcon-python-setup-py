@@ -3,12 +3,14 @@
 
 import ast
 from contextlib import suppress
+with suppress(ImportError):
+    # needed before importing distutils
+    # to avoid warning introduced in setuptools 49.2.0
+    import setuptools
 import distutils.core
 import os
 from pathlib import Path
 import runpy
-with suppress(ImportError):
-    import setuptools
 import subprocess
 import sys
 from threading import Lock
@@ -264,6 +266,9 @@ def get_setup_information(setup_py, *, env=None):
 def _get_setup_information(setup_py, *, env=None):
     code_lines = [
         'import sys',
+        # setuptools needs to be imported before distutils
+        # to avoid warning introduced in setuptools 49.2.0
+        'from setuptools.extern.packaging.specifiers import SpecifierSet',
         'from distutils.core import run_setup',
 
         'dist = run_setup('
