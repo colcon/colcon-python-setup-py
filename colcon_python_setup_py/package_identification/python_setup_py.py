@@ -47,9 +47,6 @@ class PythonPackageIdentification(PackageIdentificationExtensionPoint):
 
         config = get_setup_information(setup_py)
 
-        if desc.type is not None and desc.type != 'python':
-            logger.error('Package type already set to different value')
-            raise RuntimeError('Package type already set to different value')
         desc.type = 'python'
 
         name = config['metadata'].get('name')
@@ -64,23 +61,6 @@ class PythonPackageIdentification(PackageIdentificationExtensionPoint):
             logger.error('Package name already set to different value')
             raise RuntimeError('Package name already set to different value')
         desc.name = name
-
-        for dependency_type, option_name in [
-            ('build', 'setup_requires'),
-            ('run', 'install_requires'),
-            ('test', 'tests_require')
-        ]:
-            desc.dependencies[dependency_type] = {
-                create_dependency_descriptor(d)
-                for d in config[option_name] or ()}
-
-        def getter(env):
-            nonlocal setup_py
-            return get_setup_information(setup_py, env=env)
-
-        desc.metadata['get_python_setup_options'] = getter
-
-        desc.metadata['version'] = config['metadata'].get('version')
 
 
 cwd_lock = None
