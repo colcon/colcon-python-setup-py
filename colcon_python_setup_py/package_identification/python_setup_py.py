@@ -248,7 +248,7 @@ def _get_setup_information(setup_py, *, env=None):
         'import sys',
         # setuptools needs to be imported before distutils
         # to avoid warning introduced in setuptools 49.2.0
-        'from setuptools.extern.packaging.specifiers import SpecifierSet',
+        'from packaging.specifiers import SpecifierSet',
         'from distutils.core import run_setup',
 
         'dist = run_setup('
