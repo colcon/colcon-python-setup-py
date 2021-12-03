@@ -23,9 +23,9 @@ class PythonPackageAugmentation(PackageAugmentationExtensionPoint):
             PackageAugmentationExtensionPoint.EXTENSION_POINT_VERSION,
             '^1.0')
 
-    def augment_package(
+    def augment_package(  # noqa: D102
         self, desc, *, additional_argument_names=None
-    ):  # noqa: D102
+    ):
         if desc.type != 'python':
             return
         if 'get_python_setup_options' in desc.metadata:
