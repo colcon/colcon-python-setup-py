@@ -5,10 +5,12 @@ contextlib
 distclass
 hashable
 iterdir
+linter
 lstrip
 noqa
 pathlib
 plugin
+pydocstyle
 pytest
 pythonpath
 rtype
