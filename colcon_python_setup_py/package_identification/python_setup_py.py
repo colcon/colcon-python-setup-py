@@ -212,6 +212,11 @@ def get_setup_arguments_with_context(setup_py, env):
 
     # invoke get_setup_arguments() in a separate interpreter
     cmd = [sys.executable, '-c', ';'.join(code_lines)]
+    if env is None:
+        env = os.environ
+    if 'DISTUTILS_DEBUG' in env:
+        env = dict(env)
+        env.pop('DISTUTILS_DEBUG')
     result = subprocess.run(
         cmd, stdout=subprocess.PIPE, env=env, check=True)
     output = result.stdout.decode('utf-8')
@@ -236,6 +241,9 @@ def get_setup_information(setup_py, *, env=None):
     global _setup_information_cache
     if env is None:
         env = os.environ
+    if 'DISTUTILS_DEBUG' in env:
+        env = dict(env)
+        env.pop('DISTUTILS_DEBUG')
     hashable_env = (setup_py, ) + tuple(sorted(env.items()))
     if hashable_env not in _setup_information_cache:
         _setup_information_cache[hashable_env] = _get_setup_information(
