@@ -1,8 +1,10 @@
 apache
+basepath
 chdir
 colcon
 contextlib
 distclass
+foobar
 hashable
 iterdir
 linter
@@ -18,4 +20,5 @@ runpy
 scspell
 setuptools
 stacklevel
+tempfile
 thomas
