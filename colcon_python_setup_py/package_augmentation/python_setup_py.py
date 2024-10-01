@@ -44,7 +44,7 @@ class PythonPackageAugmentation(PackageAugmentationExtensionPoint):
         ]:
             desc.dependencies[dependency_type] = {
                 create_dependency_descriptor(d)
-                for d in config[option_name] or ()}
+                for d in config.get(option_name) or ()}
 
         def getter(env):
             nonlocal setup_py
