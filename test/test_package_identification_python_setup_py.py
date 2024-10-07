@@ -73,6 +73,12 @@ def test_identify():
             "    'runB',\n"
             '  ],\n'
             '  zip_safe=False,\n'
+            '  extras_require={\n'
+            "    'test': ['test2 == 3.0.0'],\n"
+            "    'tests': ['test3'],\n"
+            "    'testing': ['test4'],\n"
+            "    'other': ['not-test'],\n"
+            '  },\n'
             ')\n')
         _setup_information_cache.clear()
         assert extension.identify(desc) is None
@@ -87,3 +93,4 @@ def test_identify():
         assert desc.dependencies['run'] == {'runA', 'runB'}
         dep = next(x for x in desc.dependencies['run'] if x == 'runA')
         assert dep.metadata['version_gt'] == '1.2.3'
+        assert desc.dependencies['test'] == {'test2', 'test3', 'test4'}
