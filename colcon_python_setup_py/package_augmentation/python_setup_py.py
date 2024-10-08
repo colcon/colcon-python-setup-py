@@ -37,14 +37,22 @@ class PythonPackageAugmentation(PackageAugmentationExtensionPoint):
 
         config = get_setup_information(setup_py)
 
-        for dependency_type, option_name in [
+        mapping = {
             ('build', 'setup_requires'),
             ('run', 'install_requires'),
-            ('test', 'tests_require')
-        ]:
-            desc.dependencies[dependency_type] = {
-                create_dependency_descriptor(d)
-                for d in config.get(option_name) or ()}
+            ('test', 'tests_require'),
+        }
+        _map_dependencies(config, mapping, desc.dependencies)
+
+        extras_mapping = {
+            ('test', 'test'),
+            ('test', 'tests'),
+            ('test', 'testing'),
+        }
+        _map_dependencies(
+            config.get('extras_require') or {},
+            extras_mapping,
+            desc.dependencies)
 
         def getter(env):
             nonlocal setup_py
@@ -53,3 +61,11 @@ class PythonPackageAugmentation(PackageAugmentationExtensionPoint):
         desc.metadata['get_python_setup_options'] = getter
 
         desc.metadata['version'] = config['metadata'].get('version')
+
+
+def _map_dependencies(options, mapping, dependencies):
+    for dependency_type, option_name in mapping:
+        dependencies.setdefault(dependency_type, set())
+        dependencies[dependency_type].update(
+           create_dependency_descriptor(d)
+           for d in options.get(option_name) or ())
