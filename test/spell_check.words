@@ -6,8 +6,11 @@ contextlib
 distclass
 foobar
 hashable
+isdigit
 iterdir
+itertools
 linter
+linux
 lstrip
 noqa
 pathlib
@@ -20,5 +23,6 @@ runpy
 scspell
 setuptools
 stacklevel
-tempfile
+takewhile
 thomas
+tmpdir
