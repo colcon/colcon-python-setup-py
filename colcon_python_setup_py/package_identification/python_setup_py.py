@@ -6,9 +6,9 @@ from contextlib import suppress
 with suppress(ImportError):
     # needed before importing distutils
     # to avoid warning introduced in setuptools 49.2.0
-    import setuptools
-import distutils.core
-import os
+    import setuptools  # noqa: I100
+import distutils.core  # noqa: I100, I201, I202
+import os  # noqa: I100, I201, I202
 from pathlib import Path
 import runpy
 import subprocess
@@ -238,7 +238,6 @@ def get_setup_information(setup_py, *, env=None):
     :return: dictionary of data describing the package.
     :raise: RuntimeError if the setup script encountered an error
     """
-    global _setup_information_cache
     if env is None:
         env = os.environ
     if 'DISTUTILS_DEBUG' in env:

@@ -55,7 +55,6 @@ class PythonPackageAugmentation(PackageAugmentationExtensionPoint):
             desc.dependencies)
 
         def getter(env):
-            nonlocal setup_py
             return get_setup_information(setup_py, env=env)
 
         desc.metadata['get_python_setup_options'] = getter
