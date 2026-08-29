@@ -21,16 +21,11 @@ def test_flake8():
     logging.getLogger('pydocstyle').setLevel(logging.WARNING)
 
     style_guide = get_style_guide(
-        extend_ignore=[
-            'D100', 'D104', 'F824', 'I100', 'I201'
-        ],
+        extend_ignore=['D100', 'D104'],
         show_source=True,
     )
     style_guide_tests = get_style_guide(
-        extend_ignore=[
-            'D100', 'D101', 'D102', 'D103', 'D104', 'D105', 'D107',
-            'F824', 'I100', 'I201'
-        ],
+        extend_ignore=['D100', 'D101', 'D102', 'D103', 'D104', 'D105', 'D107'],
         show_source=True,
     )
 
